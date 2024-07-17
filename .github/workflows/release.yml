@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+        arch: [arm64, amd64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install Fyne CLI
+        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build application in windows
+        if: ${{ matrix.os == 'windows-latest'}}
+        run: |
+            echo "Building for Windows"
+            pwsh -command "fyne package -os windows -release -icon icon.png"
+
+      - name: Build application in macos
+        if: ${{ matrix.os == 'macos-latest'}}
+        run: |
+            fyne package -os darwin -release -icon icon.png
+            tar -czvf bittorrent-gui.tar.gz ./bittorrent-gui.app
+          
+      - name: Upload a Release Asset (windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUBTOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./bittorrent-gui.exe
+          asset_name: bittorrent-gui-${{ matrix.os }}-${{ matrix.arch }}.exe
+          asset_content_type: application/octet-stream
+          
+      - name: Upload a Release Asset (mac)
+        if: ${{ matrix.os == 'macos-latest' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUBTOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./bittorrent-gui.tar.gz
+          asset_name: bittorrent-gui-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+          asset_content_type: application/gzip

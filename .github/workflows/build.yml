@@ -1,0 +1,43 @@
+name: Build and Package
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+        arch: [arm64, amd64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install Fyne CLI
+        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build application in windows
+        if: ${{ matrix.os == 'windows-latest'}}
+        run: |
+            echo "Building for Windows"
+            pwsh -command "fyne package -os windows -release -icon icon.png"
+
+      - name: Build application in macos
+        if: ${{ matrix.os == 'macos-latest'}}
+        run: fyne package -os darwin -release -icon icon.png
